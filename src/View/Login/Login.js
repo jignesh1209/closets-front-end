@@ -112,11 +112,12 @@ export default function Login(props) {
     //if username or password field is empty, return error message
     if (result !== false) {
       //Signin Success
+      localStorage.setItem("userID", result.userid);
       localStorage.setItem("isAuthenticated", "true");
       window.location.pathname = "/";
     } else {
       //If credentials entered is invalid
-      setErrorMessage((prevState) => ({ value: "Invalid username/password" }));
+      setErrorMessage((prevState) => ({ value: "Invalid email/password" }));
       isValid = false;
     }
     return isValid;
