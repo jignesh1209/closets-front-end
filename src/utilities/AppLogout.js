@@ -33,7 +33,7 @@ const handleTimer = () => {
       window.removeEventListener(item, resetTimer);
     });
     logoutAction();
-  }, 50000);
+  }, 5000000);
 };
 
 const logoutAction = () => {
