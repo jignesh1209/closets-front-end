@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Card,
@@ -11,9 +11,7 @@ import {
   Button,
   Select,
   MenuItem,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
+  Switch,
   Typography,
   InputLabel,
 } from "@mui/material";
@@ -36,8 +34,10 @@ const overlayStyle = {
   justifyContent: "center",
 };
 
+const errorPrefix = "⚠️ ";
+
 const Home = (props) => {
-  // Track touched state for instant validation
+  // Touched state for instant validation
   const [touched, setTouched] = useState({});
 
   const handleBlur = (field) => {
@@ -55,22 +55,21 @@ const Home = (props) => {
   const [selectedColor, setSelectedColor] = useState("");
 
   // Section 3: Door Fields
-  const [doorSelection, setDoorSelection] = useState("no");
+  const [doorEnabled, setDoorEnabled] = useState(false); // toggle using Switch
   const [doorQuantity, setDoorQuantity] = useState("");
   const [doorDecoStyle, setDoorDecoStyle] = useState("");
   const [doorSelectedSeries, setDoorSelectedSeries] = useState("");
   const [doorSelectedVariant, setDoorSelectedVariant] = useState("");
 
   // Section 4: Drawer Fields
-  const [drawerSelection, setDrawerSelection] = useState("no");
+  const [drawerEnabled, setDrawerEnabled] = useState(false); // toggle using Switch
   const [drawerQuantity, setDrawerQuantity] = useState("");
   const [drawerDecoStyle, setDrawerDecoStyle] = useState("");
   const [drawerSelectedSeries, setDrawerSelectedSeries] = useState("");
   const [drawerSelectedVariant, setDrawerSelectedVariant] = useState("");
 
-  // PDF state and controls
+  // PDF state
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
-  const [showPdf, setShowPdf] = useState(false);
 
   // Options as provided
   const colorOptions = {
@@ -91,46 +90,49 @@ const Home = (props) => {
   };
 
   // Dynamic grid for Client Details section (2x2 layout)
-  const clientDetailsColumns = 2;
+  const clientDetailsColumns = 2; // Change this value to adjust grid (e.g., 3 for 3x1)
   const gridWidth = 12 / clientDetailsColumns;
   const clientDetails = [
     {
+      key: "jobID",
       label: "Job ID",
       value: jobID,
       setValue: setJobID,
-      // Only numbers allowed; we filter out non-digit onChange
-      error: touched.jobID && !/^\d{6}$/.test(jobID),
-      helperText: touched.jobID && !/^\d{6}$/.test(jobID) ? "Enter a 6-digit Job ID" : "",
-      inputProps: { pattern: "\\d{6}" },
       type: "text",
+      inputProps: { pattern: "\\d{6}", maxLength: 6 },
+      error: touched.jobID && !/^\d{6}$/.test(jobID),
+      helperText: touched.jobID && !/^\d{6}$/.test(jobID) ? errorPrefix + "Enter a 6-digit Job ID" : "",
       onChange: (e) => setJobID(e.target.value.replace(/\D/g, "")),
     },
     {
+      key: "clientName",
       label: "Client Name",
       value: clientName,
       setValue: setClientName,
-      error: touched.clientName && !/^[A-Za-z ]+$/.test(clientName),
-      helperText: touched.clientName && !/^[A-Za-z ]+$/.test(clientName) ? "Only letters allowed" : "",
-      inputProps: { inputMode: "text", pattern: "[A-Za-z ]+" },
       type: "text",
+      inputProps: { pattern: "[A-Za-z ]+", maxLength: 50 },
+      error: touched.clientName && (!clientName || !/^[A-Za-z ]+$/.test(clientName)),
+      helperText: touched.clientName && (!clientName ? errorPrefix + "Required" : errorPrefix + "Only letters allowed"),
     },
     {
+      key: "designerName",
       label: "Designer Name",
       value: designerName,
       setValue: setDesignerName,
-      error: touched.designerName && !/^[A-Za-z ]+$/.test(designerName),
-      helperText: touched.designerName && !/^[A-Za-z ]+$/.test(designerName) ? "Only letters allowed" : "",
-      inputProps: { inputMode: "text", pattern: "[A-Za-z ]+" },
       type: "text",
+      inputProps: { pattern: "[A-Za-z ]+", maxLength: 50 },
+      error: touched.designerName && (!designerName || !/^[A-Za-z ]+$/.test(designerName)),
+      helperText: touched.designerName && (!designerName ? errorPrefix + "Required" : errorPrefix + "Only letters allowed"),
     },
     {
+      key: "installLocation",
       label: "Install Location",
       value: installLocation,
       setValue: setInstallLocation,
-      error: touched.installLocation && !/^[A-Za-z]+$/.test(installLocation),
-      helperText: touched.installLocation && !/^[A-Za-z]+$/.test(installLocation) ? "Invalid characters" : "",
-      inputProps: { inputMode: "text", pattern: "[A-Za-z]+" },
       type: "text",
+      inputProps: { pattern: "[A-Za-z0-9 ,.-]+", maxLength: 100 },
+      error: touched.installLocation && (!installLocation || !/^[A-Za-z0-9 ,.-]+$/.test(installLocation)),
+      helperText: touched.installLocation && (!installLocation ? errorPrefix + "Required" : errorPrefix + "Invalid characters"),
     },
   ];
 
@@ -145,17 +147,66 @@ const Home = (props) => {
     /^[A-Za-z0-9 ,.-]+$/.test(installLocation);
   const isSection2Complete = collectionList && selectedColor;
   const isSection3Complete =
-    doorSelection === "no" ||
-    (doorSelection === "yes" &&
+    !doorEnabled ||
+    (doorEnabled &&
       doorQuantity.trim() &&
       doorDecoStyle &&
       (doorDecoStyle === "Slab" || (doorSelectedSeries && doorSelectedVariant)));
   const isSection4Complete =
-    drawerSelection === "no" ||
-    (drawerSelection === "yes" &&
+    !drawerEnabled ||
+    (drawerEnabled &&
       drawerQuantity.trim() &&
       drawerDecoStyle &&
       (drawerDecoStyle === "Slab" || (drawerSelectedSeries && drawerSelectedVariant)));
+
+  // Auto-select deco series/variant if only one option exists
+  // For Door
+  useEffect(() => {
+    if (doorDecoStyle && doorDecoStyle !== "Slab") {
+      const availableSeries = seriesOptions[doorDecoStyle] || [];
+      if (availableSeries.length === 1) {
+        setDoorSelectedSeries(availableSeries[0]);
+      }
+    } else {
+      setDoorSelectedSeries("");
+      setDoorSelectedVariant("");
+    }
+  }, [doorDecoStyle]);
+
+  useEffect(() => {
+    if (doorSelectedSeries) {
+      const availableVariants = variantOptions[doorSelectedSeries] || [];
+      if (availableVariants.length === 1) {
+        setDoorSelectedVariant(availableVariants[0]);
+      }
+    } else {
+      setDoorSelectedVariant("");
+    }
+  }, [doorSelectedSeries]);
+
+  // For Drawer
+  useEffect(() => {
+    if (drawerDecoStyle && drawerDecoStyle !== "Slab") {
+      const availableSeries = seriesOptions[drawerDecoStyle] || [];
+      if (availableSeries.length === 1) {
+        setDrawerSelectedSeries(availableSeries[0]);
+      }
+    } else {
+      setDrawerSelectedSeries("");
+      setDrawerSelectedVariant("");
+    }
+  }, [drawerDecoStyle]);
+
+  useEffect(() => {
+    if (drawerSelectedSeries) {
+      const availableVariants = variantOptions[drawerSelectedSeries] || [];
+      if (availableVariants.length === 1) {
+        setDrawerSelectedVariant(availableVariants[0]);
+      }
+    } else {
+      setDrawerSelectedVariant("");
+    }
+  }, [drawerSelectedSeries]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -186,15 +237,15 @@ const Home = (props) => {
       return;
     }
     if (!isSection3Complete) {
-      alert("Please complete Door Fields or select 'No' for Door.");
+      alert("Please complete Door Fields or disable door.");
       return;
     }
     if (!isSection4Complete) {
-      alert("Please complete Drawer Fields or select 'No' for Drawer.");
+      alert("Please complete Drawer Fields or disable drawer.");
       return;
     }
 
-    // Call service as before
+    // Call the service (unchanged)
     const filters = {
       jobId: jobID,
       clientName: clientName,
@@ -208,7 +259,7 @@ const Home = (props) => {
     doc.setFontSize(18);
     doc.text("Contract Agreement", 105, 20, { align: "center" });
 
-    // Optional: add a logo if needed
+    // Optional: add logo if needed.
     // const logoBase64 = '';
     // doc.addImage(logoBase64, "PNG", 4, 4, 40, 20);
 
@@ -237,7 +288,7 @@ const Home = (props) => {
     yPos += 10;
 
     // Door Section
-    if (doorSelection === "yes") {
+    if (doorEnabled) {
       doc.text(`Door Quantity: ${doorQuantity}`, 10, yPos);
       yPos += 10;
       doc.text(
@@ -249,7 +300,7 @@ const Home = (props) => {
     }
 
     // Drawer Section
-    if (drawerSelection === "yes") {
+    if (drawerEnabled) {
       doc.text(`Drawer Quantity: ${drawerQuantity}`, 10, yPos);
       yPos += 10;
       doc.text(
@@ -302,9 +353,15 @@ const Home = (props) => {
                   Client Details
                 </Typography>
                 <Grid container spacing={1}>
-                  {clientDetails.map((field, index) => (
-                    <Grid item xs={gridWidth} key={index}>
-                      <FormControl fullWidth required size="small" error={field.error}>
+                  {clientDetails.map((field) => (
+                    <Grid item xs={gridWidth} key={field.key}>
+                      <FormControl
+                        fullWidth
+                        required
+                        size="small"
+                        sx={{ m: 1, minWidth: 120 }}
+                        error={touched[field.key] && field.error}
+                      >
                         <FormLabel>{field.label}</FormLabel>
                         <TextField
                           id="outlined-basic"
@@ -312,11 +369,11 @@ const Home = (props) => {
                           onChange={(e) =>
                             field.onChange ? field.onChange(e) : field.setValue(e.target.value)
                           }
-                          onBlur={() => handleBlur(field.label.replace(" ", "").toLowerCase())}
+                          onBlur={() => handleBlur(field.key)}
                           variant="outlined"
-                          type={field.type || "text"}
-                          inputProps={field.inputProps || {}}
-                          helperText={field.helperText}
+                          type={field.type}
+                          inputProps={field.inputProps}
+                          helperText={touched[field.key] && field.error ? errorPrefix + field.helperText : ""}
                         />
                       </FormControl>
                     </Grid>
@@ -342,7 +399,7 @@ const Home = (props) => {
                 </Typography>
                 <Grid container spacing={1}>
                   <Grid item xs={12}>
-                    <FormControl fullWidth required size="small" error={touched.collectionList && !collectionList}>
+                    <FormControl fullWidth required size="small" sx={{ m: 1, minWidth: 120 }}>
                       <InputLabel id="collection-list-label">Collection List</InputLabel>
                       <Select
                         labelId="collection-list-label"
@@ -358,11 +415,13 @@ const Home = (props) => {
                         <MenuItem value="Classic">Classic</MenuItem>
                         <MenuItem value="Brio">Brio</MenuItem>
                       </Select>
-                      {touched.collectionList && !collectionList && <FormHelperText>Required</FormHelperText>}
+                      {touched.collectionList && !collectionList && (
+                        <FormHelperText>{errorPrefix}Required</FormHelperText>
+                      )}
                     </FormControl>
                   </Grid>
                   <Grid item xs={12}>
-                    <FormControl fullWidth required size="small" error={touched.selectedColor && !selectedColor}>
+                    <FormControl fullWidth required size="small" sx={{ m: 1, minWidth: 120 }}>
                       <InputLabel id="collection-color-label">Collection Color</InputLabel>
                       <Select
                         labelId="collection-color-label"
@@ -383,7 +442,9 @@ const Home = (props) => {
                             </MenuItem>
                           ))}
                       </Select>
-                      {touched.selectedColor && !selectedColor && <FormHelperText>Required</FormHelperText>}
+                      {touched.selectedColor && !selectedColor && (
+                        <FormHelperText>{errorPrefix}Required</FormHelperText>
+                      )}
                     </FormControl>
                   </Grid>
                 </Grid>
@@ -407,37 +468,32 @@ const Home = (props) => {
                 </Typography>
                 <Grid container spacing={1}>
                   {/* Door Fields */}
-                  <Grid item xs={12}>
+                  <Grid item xs={12} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <FormControl component="fieldset" size="small">
-                      <FormLabel component="legend">Door Selection</FormLabel>
-                      <RadioGroup
-                        row
-                        value={doorSelection}
-                        onChange={(e) => setDoorSelection(e.target.value)}
-                      >
-                        <FormControlLabel value="yes" control={<Radio size="small" />} label="Yes" />
-                        <FormControlLabel value="no" control={<Radio size="small" />} label="No" />
-                      </RadioGroup>
+                      <FormLabel component="legend">Door Enabled</FormLabel>
+                      <Switch
+                        checked={doorEnabled}
+                        onChange={(e) => setDoorEnabled(e.target.checked)}
+                        color="primary"
+                      />
                     </FormControl>
+                    {doorEnabled && (
+                      <FormControl fullWidth size="small" sx={{ m: 1, minWidth: 120 }}>
+                        <TextField
+                          label="Door Quantity"
+                          value={doorQuantity}
+                          onChange={(e) => setDoorQuantity(e.target.value)}
+                          onBlur={() => handleBlur("doorQuantity")}
+                          variant="outlined"
+                          type="number"
+                        />
+                      </FormControl>
+                    )}
                   </Grid>
-                  {doorSelection === "yes" && (
+                  {doorEnabled && (
                     <>
                       <Grid item xs={12} sm={4}>
-                        <FormControl fullWidth required size="small" error={touched.doorQuantity && !doorQuantity}>
-                          <TextField
-                            id="outlined-basic"
-                            label="Door Quantity"
-                            value={doorQuantity}
-                            onChange={(e) => setDoorQuantity(e.target.value)}
-                            onBlur={() => handleBlur("doorQuantity")}
-                            variant="outlined"
-                            type="number"
-                          />
-                          {touched.doorQuantity && !doorQuantity && <FormHelperText>Required</FormHelperText>}
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <FormControl fullWidth required size="small" error={touched.doorDecoStyle && !doorDecoStyle}>
+                        <FormControl fullWidth required size="small" sx={{ m: 1, minWidth: 120 }} error={touched.doorDecoStyle && !doorDecoStyle}>
                           <InputLabel id="door-deco-style-label">Door Deco Style</InputLabel>
                           <Select
                             labelId="door-deco-style-label"
@@ -457,41 +513,38 @@ const Home = (props) => {
                             <MenuItem value="Avanti">Avanti</MenuItem>
                             <MenuItem value="Slab">Slab</MenuItem>
                           </Select>
-                          {touched.doorDecoStyle && !doorDecoStyle && <FormHelperText>Required</FormHelperText>}
                         </FormControl>
                       </Grid>
-                      {doorDecoStyle !== "Slab" && (
-                        <>
+                      {doorDecoStyle !== "Slab" && seriesOptions[doorDecoStyle] && seriesOptions[doorDecoStyle].length > 0 && (
+                        <Grid item xs={12} sm={4}>
+                          <FormControl fullWidth required size="small" sx={{ m: 1, minWidth: 120 }} error={touched.doorSelectedSeries && !doorSelectedSeries}>
+                            <InputLabel id="door-deco-series-label">Door Deco Series</InputLabel>
+                            <Select
+                              labelId="door-deco-series-label"
+                              value={doorSelectedSeries}
+                              onChange={(e) => {
+                                setDoorSelectedSeries(e.target.value);
+                                handleBlur("doorSelectedSeries");
+                              }}
+                              disabled={!doorDecoStyle || doorDecoStyle === "Slab"}
+                              variant="outlined"
+                              label="Door Deco Series"
+                            >
+                              {seriesOptions[doorDecoStyle].map((series) => (
+                                <MenuItem key={series} value={series}>
+                                  {series}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      )}
+                      {doorDecoStyle !== "Slab" &&
+                        doorSelectedSeries &&
+                        variantOptions[doorSelectedSeries] &&
+                        variantOptions[doorSelectedSeries].length > 0 && (
                           <Grid item xs={12} sm={4}>
-                            <FormControl fullWidth required size="small" error={touched.doorSelectedSeries && !doorSelectedSeries}>
-                              <InputLabel id="door-deco-series-label">Door Deco Series</InputLabel>
-                              <Select
-                                labelId="door-deco-series-label"
-                                value={doorSelectedSeries}
-                                onChange={(e) => {
-                                  setDoorSelectedSeries(e.target.value);
-                                  handleBlur("doorSelectedSeries");
-                                }}
-                                disabled={!doorDecoStyle || doorDecoStyle === "Slab"}
-                                variant="outlined"
-                                label="Door Deco Series"
-                              >
-                                {(doorDecoStyle === "Deco"
-                                  ? seriesOptions.Deco
-                                  : doorDecoStyle === "Avanti"
-                                  ? seriesOptions.Avanti
-                                  : []
-                                ).map((series) => (
-                                  <MenuItem key={series} value={series}>
-                                    {series}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                              {touched.doorSelectedSeries && !doorSelectedSeries && <FormHelperText>Required</FormHelperText>}
-                            </FormControl>
-                          </Grid>
-                          <Grid item xs={12} sm={4}>
-                            <FormControl fullWidth required size="small" error={touched.doorSelectedVariant && !doorSelectedVariant}>
+                            <FormControl fullWidth required size="small" sx={{ m: 1, minWidth: 120 }} error={touched.doorSelectedVariant && !doorSelectedVariant}>
                               <InputLabel id="door-deco-variant-label">Door Deco Variant</InputLabel>
                               <Select
                                 labelId="door-deco-variant-label"
@@ -504,54 +557,45 @@ const Home = (props) => {
                                 variant="outlined"
                                 label="Door Deco Variant"
                               >
-                                {doorSelectedSeries &&
-                                  variantOptions[doorSelectedSeries] &&
-                                  variantOptions[doorSelectedSeries].map((variant) => (
-                                    <MenuItem key={variant} value={variant}>
-                                      {variant}
-                                    </MenuItem>
-                                  ))}
+                                {variantOptions[doorSelectedSeries].map((variant) => (
+                                  <MenuItem key={variant} value={variant}>
+                                    {variant}
+                                  </MenuItem>
+                                ))}
                               </Select>
-                              {touched.doorSelectedVariant && !doorSelectedVariant && <FormHelperText>Required</FormHelperText>}
                             </FormControl>
                           </Grid>
-                        </>
-                      )}
+                        )}
                     </>
                   )}
 
                   {/* Drawer Fields */}
-                  <Grid item xs={12}>
+                  <Grid item xs={12} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <FormControl component="fieldset" size="small">
-                      <FormLabel component="legend">Drawer Selection</FormLabel>
-                      <RadioGroup
-                        row
-                        value={drawerSelection}
-                        onChange={(e) => setDrawerSelection(e.target.value)}
-                      >
-                        <FormControlLabel value="yes" control={<Radio size="small" />} label="Yes" />
-                        <FormControlLabel value="no" control={<Radio size="small" />} label="No" />
-                      </RadioGroup>
+                      <FormLabel component="legend">Drawer Enabled</FormLabel>
+                      <Switch
+                        checked={drawerEnabled}
+                        onChange={(e) => setDrawerEnabled(e.target.checked)}
+                        color="primary"
+                      />
                     </FormControl>
+                    {drawerEnabled && (
+                      <FormControl fullWidth size="small" sx={{ m: 1, minWidth: 120 }}>
+                        <TextField
+                          label="Drawer Quantity"
+                          value={drawerQuantity}
+                          onChange={(e) => setDrawerQuantity(e.target.value)}
+                          onBlur={() => handleBlur("drawerQuantity")}
+                          variant="outlined"
+                          type="number"
+                        />
+                      </FormControl>
+                    )}
                   </Grid>
-                  {drawerSelection === "yes" && (
+                  {drawerEnabled && (
                     <>
                       <Grid item xs={12} sm={4}>
-                        <FormControl fullWidth required size="small" error={touched.drawerQuantity && !drawerQuantity}>
-                          <TextField
-                            id="outlined-basic"
-                            label="Drawer Quantity"
-                            value={drawerQuantity}
-                            onChange={(e) => setDrawerQuantity(e.target.value)}
-                            onBlur={() => handleBlur("drawerQuantity")}
-                            variant="outlined"
-                            type="number"
-                          />
-                          {touched.drawerQuantity && !drawerQuantity && <FormHelperText>Required</FormHelperText>}
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <FormControl fullWidth required size="small" error={touched.drawerDecoStyle && !drawerDecoStyle}>
+                        <FormControl fullWidth required size="small" sx={{ m: 1, minWidth: 120 }} error={touched.drawerDecoStyle && !drawerDecoStyle}>
                           <InputLabel id="drawer-deco-style-label">Drawer Deco Style</InputLabel>
                           <Select
                             labelId="drawer-deco-style-label"
@@ -571,41 +615,38 @@ const Home = (props) => {
                             <MenuItem value="Avanti">Avanti</MenuItem>
                             <MenuItem value="Slab">Slab</MenuItem>
                           </Select>
-                          {touched.drawerDecoStyle && !drawerDecoStyle && <FormHelperText>Required</FormHelperText>}
                         </FormControl>
                       </Grid>
-                      {drawerDecoStyle !== "Slab" && (
-                        <>
+                      {drawerDecoStyle !== "Slab" && seriesOptions[drawerDecoStyle] && seriesOptions[drawerDecoStyle].length > 0 && (
+                        <Grid item xs={12} sm={4}>
+                          <FormControl fullWidth required size="small" sx={{ m: 1, minWidth: 120 }} error={touched.drawerSelectedSeries && !drawerSelectedSeries}>
+                            <InputLabel id="drawer-deco-series-label">Drawer Deco Series</InputLabel>
+                            <Select
+                              labelId="drawer-deco-series-label"
+                              value={drawerSelectedSeries}
+                              onChange={(e) => {
+                                setDrawerSelectedSeries(e.target.value);
+                                handleBlur("drawerSelectedSeries");
+                              }}
+                              disabled={!drawerDecoStyle || drawerDecoStyle === "Slab"}
+                              variant="outlined"
+                              label="Drawer Deco Series"
+                            >
+                              {seriesOptions[drawerDecoStyle].map((series) => (
+                                <MenuItem key={series} value={series}>
+                                  {series}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      )}
+                      {drawerDecoStyle !== "Slab" &&
+                        drawerSelectedSeries &&
+                        variantOptions[drawerSelectedSeries] &&
+                        variantOptions[drawerSelectedSeries].length > 0 && (
                           <Grid item xs={12} sm={4}>
-                            <FormControl fullWidth required size="small" error={touched.drawerSelectedSeries && !drawerSelectedSeries}>
-                              <InputLabel id="drawer-deco-series-label">Drawer Deco Series</InputLabel>
-                              <Select
-                                labelId="drawer-deco-series-label"
-                                value={drawerSelectedSeries}
-                                onChange={(e) => {
-                                  setDrawerSelectedSeries(e.target.value);
-                                  handleBlur("drawerSelectedSeries");
-                                }}
-                                disabled={!drawerDecoStyle || drawerDecoStyle === "Slab"}
-                                variant="outlined"
-                                label="Drawer Deco Series"
-                              >
-                                {(drawerDecoStyle === "Deco"
-                                  ? seriesOptions.Deco
-                                  : drawerDecoStyle === "Avanti"
-                                  ? seriesOptions.Avanti
-                                  : []
-                                ).map((series) => (
-                                  <MenuItem key={series} value={series}>
-                                    {series}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                              {touched.drawerSelectedSeries && !drawerSelectedSeries && <FormHelperText>Required</FormHelperText>}
-                            </FormControl>
-                          </Grid>
-                          <Grid item xs={12} sm={4}>
-                            <FormControl fullWidth required size="small" error={touched.drawerSelectedVariant && !drawerSelectedVariant}>
+                            <FormControl fullWidth required size="small" sx={{ m: 1, minWidth: 120 }} error={touched.drawerSelectedVariant && !drawerSelectedVariant}>
                               <InputLabel id="drawer-deco-variant-label">Drawer Deco Variant</InputLabel>
                               <Select
                                 labelId="drawer-deco-variant-label"
@@ -618,19 +659,15 @@ const Home = (props) => {
                                 variant="outlined"
                                 label="Drawer Deco Variant"
                               >
-                                {drawerSelectedSeries &&
-                                  variantOptions[drawerSelectedSeries] &&
-                                  variantOptions[drawerSelectedSeries].map((variant) => (
-                                    <MenuItem key={variant} value={variant}>
-                                      {variant}
-                                    </MenuItem>
-                                  ))}
+                                {variantOptions[drawerSelectedSeries].map((variant) => (
+                                  <MenuItem key={variant} value={variant}>
+                                    {variant}
+                                  </MenuItem>
+                                ))}
                               </Select>
-                              {touched.drawerSelectedVariant && !drawerSelectedVariant && <FormHelperText>Required</FormHelperText>}
                             </FormControl>
                           </Grid>
-                        </>
-                      )}
+                        )}
                     </>
                   )}
                 </Grid>
