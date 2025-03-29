@@ -368,7 +368,7 @@ export const typography = {
 };
 
 export const shape = {
-  borderRadius: 8,
+  borderRadius: 5,
 };
 
 const defaultShadows = [

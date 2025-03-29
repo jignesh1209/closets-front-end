@@ -129,19 +129,12 @@ export default function Login(props) {
       <SignInContainer direction="column" justifyContent="space-between">
         <Card variant="outlined" sx={{ img: { textAlign: "center" } }}>
           <img
-            width="250"
-            height="100"
+            width="240"
+            height="125"
             style={{ marginLeft: "auto", marginRight: "auto", widht: "50%" }}
             src={Logo}
             alt="Design Logo"
           ></img>
-          <Typography
-            component="h1"
-            variant="h4"
-            sx={{ width: "100%", textAlign: "center" }}
-          >
-            Sign in
-          </Typography>
           <Box
             component="form"
             onSubmit={handleSubmit}
@@ -161,7 +154,7 @@ export default function Login(props) {
                 id="email"
                 type="email"
                 name="email"
-                placeholder="your@email.com"
+                placeholder="username@domain.com"
                 autoComplete="email"
                 autoFocus
                 required
